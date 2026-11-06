@@ -278,9 +278,11 @@ $v = max(@filemtime(__DIR__ . '/assets/js/pages/app.js') ?: 1, @filemtime(__DIR_
         <button id="appendBtn" class="ghost small" title="ใช้ชั้น วิชา หัวข้อ จำนวนใบ และรูปแบบโจทย์ตามที่ตั้งไว้ด้านบน สร้างต่อท้ายชุดนี้">＋ สร้างเพิ่มต่อท้าย (ตามค่าด้านบน)</button>
         <button id="regenAllBtn" class="ghost small" title="สร้างเนื้อหาใหม่ทุกใบด้วยแผนเดิม (เก็บชุดเดิมเป็นสำเนาให้ก่อน)">↻ สร้างทั้งชุดใหม่</button>
         <button id="copyBtn" class="ghost small" title="บันทึกชุดปัจจุบันเป็นรายการใหม่ แล้วแก้ไขต่อที่สำเนานั้น">⧉ บันทึกเป็นสำเนาใหม่</button>
+        <button id="onlineWsBtn" type="button" class="ghost small" style="background:#eff6ff;color:#1d4ed8;border-color:#93c5fd;font-weight:700">🌐 แปลงเป็นข้อสอบออนไลน์</button>
         <a href="book.php" class="small" style="font-size:13px;font-weight:600;color:var(--pink)" title="รวมใบงานที่บันทึกไว้เป็นเล่ม พร้อมปกและสารบัญ">📖 รวมเป็นเล่ม</a>
         <span style="font-size:12px;color:var(--muted)">ย้ายลำดับ/ลบแต่ละใบได้ที่แถบเหนือใบงาน</span>
       </div>
+      <div id="onlineWsBox" class="hidden" style="margin-top:10px;padding:10px 12px;background:#eff6ff;border:1px solid #93c5fd;border-radius:10px;font-size:13px"></div>
       <div class="progress"><div id="progressBar" style="width:0"></div></div>
       <div id="waitNote" style="font-size:13px;color:#7a5b00;min-height:1.2em"></div>
       <div id="imgErr" style="font-size:13px;color:#b00020"></div>

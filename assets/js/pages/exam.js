@@ -110,10 +110,23 @@
   $('indNone').addEventListener('click', () => { document.querySelectorAll('#indBox input').forEach((i) => { i.checked = false; }); indNote(); });
 
   function request() {
+    const fm = $('figMode') ? $('figMode').value : 'smart';
     return {
-      grade: $('grade').value, subject: $('subject').value, term: $('term').value, kind: $('kind').value,
-      scope: $('scope').value, hint: $('hint').value, indicators: checkedCodes(), mix: mixVals(),
-      useBank: $('useBank').checked, parts: partsCfg(),
+      grade: $('grade').value,
+      subject: $('subject').value,
+      term: $('term').value,
+      kind: $('kind').value,
+      title: $('title').value.trim(),
+      scope: $('scope').value,
+      scopeEdited: st.scopeEdited,
+      hint: $('hint').value,
+      indicators: checkedCodes(),
+      mix: mixVals(),
+      useBank: $('useBank').checked,
+      figMode: fm,
+      withFigures: fm !== 'none',
+      paperCols: $('paperCols') ? $('paperCols').value : '2',
+      parts: partsCfg(),
     };
   }
 
@@ -173,17 +186,40 @@
 
   /* --------------------------- แก้ไขข้อสอบ --------------------------- */
   const SRC = { bank: 'จากคลัง', ai: 'AI สร้าง', edited: 'แก้ไขแล้ว', none: 'ยังไม่มีข้อ' };
+
+  function renderFig(fig) {
+    if (!fig) return '';
+    if (typeof fig === 'string') {
+      const s = fig.trim();
+      if (s.startsWith('<svg')) {
+        return `<div class="xq-fig">${s}</div>`;
+      }
+      if (s.startsWith('http') || s.startsWith('data:') || s.startsWith('api/')) {
+        return `<div class="xq-fig"><img src="${esc(s)}" alt="แผนภาพประกอบ"></div>`;
+      }
+      return '';
+    }
+    if (typeof fig === 'object') {
+      const inner = fig.svg || (fig.url ? `<img src="${esc(fig.url)}" alt="${esc(fig.caption || 'ภาพประกอบ')}">` : '');
+      if (!inner) return '';
+      return `<div class="xq-fig">${inner}${fig.caption ? `<div class="xq-fig-caption">${esc(fig.caption)}</div>` : ''}</div>`;
+    }
+    return '';
+  }
+
   function card(p, i, it) {
-    const head = `<div class="hd"><b>ข้อ ${i + 1}</b>${it.indicator ? `<span class="chip">${esc(it.indicator)}</span>` : ''}<span class="chip gray">ระดับ ${it.level}</span><span class="badge ${esc(it.source || 'none')}">${SRC[it.source] || ''}</span><span style="flex:1"></span><button class="ghost small" data-regen="${p}:${i}">↻ สร้างข้อใหม่</button></div>`;
+    const hasFig = Boolean(it.figure && String(it.figure).trim());
+    const head = `<div class="hd"><b>ข้อ ${i + 1}</b>${it.indicator ? `<span class="chip">${esc(it.indicator)}</span>` : ''}<span class="chip gray">ระดับ ${it.level}</span><span class="badge ${esc(it.source || 'none')}">${SRC[it.source] || ''}</span><span style="flex:1"></span><button class="ghost small" data-regen-fig="${p}:${i}" title="สร้างหรือเปลี่ยนภาพประกอบของข้อนี้">${hasFig ? '🖼️ เปลี่ยนรูป' : '＋ เพิ่มรูปประกอบ'}</button>${hasFig ? `<button class="ghost small" data-del-fig="${p}:${i}" title="ลบรูปประกอบของข้อนี้ออก">🗑️ ลบรูป</button>` : ''}<button class="ghost small" data-regen="${p}:${i}">↻ สร้างข้อใหม่</button></div>`;
     let body = '';
+    const figBox = hasFig ? `<div class="fig-preview">${renderFig(it.figure)}<div style="font-size:11px;color:#666;margin-top:2px">แผนภาพประกอบของข้อนี้ (แสดงในข้อสอบจริงและข้อสอบออนไลน์)</div></div>` : '';
     if (p === 'mc') {
-      body = `<textarea data-f="question">${esc(it.question)}</textarea><div class="chs">${it.choices.map((c, k) => `<label class="ch"><input type="radio" name="a-${i}" data-f="ans" data-k="${k}"${it.answerIndex === k ? ' checked' : ''} title="เลือกข้อที่ถูก"><b>${LET[k]}</b><input type="text" data-f="choice" data-k="${k}" value="${esc(c)}"></label>`).join('')}</div><textarea data-f="explain" placeholder="เหตุผล/วิธีคิด (ไม่บังคับ)" style="margin-top:6px;min-height:34px">${esc(it.explain || '')}</textarea>`;
+      body = `<textarea data-f="question">${esc(it.question)}</textarea>${figBox}<div class="chs">${it.choices.map((c, k) => `<label class="ch"><input type="radio" name="a-${i}" data-f="ans" data-k="${k}"${it.answerIndex === k ? ' checked' : ''} title="เลือกข้อที่ถูก"><b>${LET[k]}</b><input type="text" data-f="choice" data-k="${k}" value="${esc(c)}"></label>`).join('')}</div><textarea data-f="explain" placeholder="เหตุผล/วิธีคิด (ไม่บังคับ)" style="margin-top:6px;min-height:34px">${esc(it.explain || '')}</textarea>`;
     } else if (p === 'tf') {
-      body = `<textarea data-f="statement">${esc(it.statement)}</textarea><label style="font-size:13px">เฉลย <select data-f="tfans"><option value="1"${it.answer ? ' selected' : ''}>ถูก</option><option value="0"${it.answer ? '' : ' selected'}>ผิด</option></select></label>`;
+      body = `<textarea data-f="statement">${esc(it.statement)}</textarea>${figBox}<label style="font-size:13px">เฉลย <select data-f="tfans"><option value="1"${it.answer ? ' selected' : ''}>ถูก</option><option value="0"${it.answer ? '' : ' selected'}>ผิด</option></select></label>`;
     } else if (p === 'match') {
-      body = `<div class="mt"><input type="text" data-f="left" value="${esc(it.left)}" placeholder="ซ้าย"><input type="text" data-f="right" value="${esc(it.right)}" placeholder="ขวา (คู่ที่ถูก)"></div>`;
+      body = `${figBox}<div class="mt"><input type="text" data-f="left" value="${esc(it.left)}" placeholder="ซ้าย"><input type="text" data-f="right" value="${esc(it.right)}" placeholder="ขวา (คู่ที่ถูก)"></div>`;
     } else {
-      body = `<textarea data-f="question">${esc(it.question)}</textarea><textarea data-f="solution" placeholder="วิธีทำ (บรรทัดละขั้นตอน)" style="margin-top:6px">${esc((it.solution || []).join('\n'))}</textarea><div class="row" style="margin-top:6px"><label style="flex:1;font-size:13px">คำตอบ<input type="text" data-f="answer" value="${esc(it.answer)}"></label><label style="font-size:13px">บรรทัดเขียน<input type="number" data-f="lines" min="2" max="12" value="${it.lines || 5}" style="width:70px"></label></div>`;
+      body = `<textarea data-f="question">${esc(it.question)}</textarea>${figBox}<textarea data-f="solution" placeholder="วิธีทำ (บรรทัดละขั้นตอน)" style="margin-top:6px">${esc((it.solution || []).join('\n'))}</textarea><div class="row" style="margin-top:6px"><label style="flex:1;font-size:13px">คำตอบ<input type="text" data-f="answer" value="${esc(it.answer)}"></label><label style="font-size:13px">บรรทัดเขียน<input type="number" data-f="lines" min="2" max="12" value="${it.lines || 5}" style="width:70px"></label></div>`;
     }
     return `<div class="xcard${it.source === 'none' ? ' none' : ''}" data-p="${p}" data-i="${i}">${head}${body}</div>`;
   }
@@ -222,6 +258,41 @@
     cardEl.classList.remove('none');
   });
   $('pane-edit').addEventListener('click', async (e) => {
+    const delFigBtn = e.target.closest('[data-del-fig]');
+    if (delFigBtn) {
+      const [p, i] = delFigBtn.dataset.delFig.split(':');
+      const it = st.doc.parts[p].items[Number(i)];
+      it.figure = '';
+      markEdited(it);
+      renderEdit();
+      return;
+    }
+
+    const figBtn = e.target.closest('[data-regen-fig]');
+    if (figBtn) {
+      const [p, i] = figBtn.dataset.regenFig.split(':');
+      const it = st.doc.parts[p].items[Number(i)];
+      figBtn.disabled = true;
+      figBtn.textContent = 'กำลังวาด…';
+      try {
+        const r = await api('api/exam.php', {
+          action: 'regen_fig',
+          subject: st.doc.subject,
+          question: `${$('scope').value} ${it.question || it.statement || it.left || ''}`,
+          part: p,
+        }, true);
+        it.figure = r.figure;
+        markEdited(it);
+        renderEdit();
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        figBtn.disabled = false;
+        figBtn.textContent = '🖼️ เปลี่ยนรูป';
+      }
+      return;
+    }
+
     const b = e.target.closest('[data-regen]');
     if (!b) return;
     const [p, i] = b.dataset.regen.split(':');
@@ -312,40 +383,51 @@
 
   function paperHead(doc, vi, sheet) {
     const term = doc.term ? ` ภาคเรียนที่ ${esc(doc.term)}` : '';
-    return `${versions() > 1 ? `<span class="vtag">ชุด ${VNAME[vi]}</span>` : ''}<h2>${esc(doc.school || '')}</h2>
-      <div class="meta"><b>${esc(sheet ? 'กระดาษคำตอบ ' : '')}${esc(doc.title)}</b></div>
-      <div class="meta">วิชา${esc(doc.subject)} ชั้น${esc(doc.grade)}${term}${doc.year ? ' ปีการศึกษา ' + esc(doc.year) : ''}</div>
-      <div class="meta">${doc.minutes ? `เวลา ${doc.minutes} นาที · ` : ''}คะแนนเต็ม ${fmt(totalScore(doc))} คะแนน · ทั้งหมด ${itemCount(doc)} ข้อ</div>
+    const topSub = `แบบทดสอบวิชา${esc(doc.subject)} ชั้น${esc(doc.grade)} ชุดที่ ${vi + 1}`;
+    return `<div class="xtop-bar"><span>${topSub}</span><span>${versions() > 1 ? `<span class="vtag">ชุด ${VNAME[vi]}</span>` : ''}</span></div>
+      ${doc.school ? `<h2>${esc(doc.school)}</h2>` : ''}
+      <div class="xbanner-box">
+        <div class="xbanner-title">${esc(sheet ? 'กระดาษคำตอบ ' : '')}${esc(doc.title)}</div>
+        <div class="meta">วิชา${esc(doc.subject)} ชั้น${esc(doc.grade)}${term}${doc.year ? ' ปีการศึกษา ' + esc(doc.year) : ''} · ${doc.minutes ? `เวลา ${doc.minutes} นาที · ` : ''}คะแนนเต็ม ${fmt(totalScore(doc))} คะแนน (${itemCount(doc)} ข้อ)</div>
+      </div>
       <div class="who"><span>ชื่อ-สกุล<span class="ln">&nbsp;</span></span><span>ชั้น<span class="ln">&nbsp;</span></span><span>เลขที่<span class="ln">&nbsp;</span></span></div>`;
   }
   function insLine(p, part, nPart) {
     const sc = part.score, total = fmt(part.items.length * sc);
     const ins = {
-      mc: 'เลือกคำตอบที่ถูกต้องที่สุดเพียงข้อเดียว แล้วฝนวงกลมในกระดาษคำตอบ',
-      tf: 'พิจารณาข้อความที่กำหนดให้ว่าถูกหรือผิด แล้วฝนช่อง “ถูก” หรือ “ผิด” ในกระดาษคำตอบ',
-      match: 'จับคู่ข้อความทางซ้ายมือกับตัวเลือกทางขวามือ แล้วฝนตัวอักษรของคำตอบในกระดาษคำตอบ',
-      written: 'แสดงวิธีทำและเหตุผลประกอบอย่างชัดเจน',
+      mc: 'จงเลือกคำตอบที่ถูกต้องที่สุดเพียงคำตอบเดียว',
+      tf: 'พิจารณาข้อความที่กำหนดให้ว่าถูกหรือผิด แล้วทำเครื่องหมายในกระดาษคำตอบ',
+      match: 'จับคู่ข้อความทางซ้ายมือกับตัวเลือกทางขวามือที่สัมพันธ์กัน',
+      written: 'แสดงวิธีทำและอธิบายเหตุผลประกอบอย่างชัดเจน',
     }[p];
-    return `<div class="ptitle">ตอนที่ ${nPart} ${PLABEL[p]} (${part.items.length}${p === 'match' ? ' คู่' : ' ข้อ'} ข้อละ ${fmt(sc)} คะแนน รวม ${total} คะแนน)</div><div class="pins">คำชี้แจง: ${ins}</div>`;
+    return `<div class="ptitle">ตอนที่ ${nPart} ${PLABEL[p]} (${part.items.length}${p === 'match' ? ' คู่' : ' ข้อ'} ข้อละ ${fmt(sc)} คะแนน รวม ${total} คะแนน)</div><div class="pins"><b>คำสั่ง</b> ${ins}</div>`;
   }
   function paperHtml(doc, vi) {
     const v = buildVersion(doc, vi);
+    const cols = ($('paperCols') ? $('paperCols').value : doc.paperCols || '2') === '2';
     let html = paperHead(doc, vi, false);
+    let bodyHtml = '';
     let nPart = 0;
     for (const p of present(doc)) {
       nPart++;
-      html += insLine(p, doc.parts[p], nPart);
+      bodyHtml += insLine(p, doc.parts[p], nPart);
       if (p === 'mc') {
-        html += v.mc.map((q, i) => `<div class="xq"><span class="qn">${i + 1}.</span>${nl(q.question)}<div class="chs${q.choices.some((c) => c.length > 38) ? ' one' : ''}">${q.choices.map((c, k) => `<div>${LET[k]}. ${nl(c)}</div>`).join('')}</div></div>`).join('');
+        const itemsHtml = v.mc.map((q, i) => {
+          const forceOneCol = cols || q.choices.some((c) => c.length > 26);
+          return `<div class="xq"><span class="qn">${i + 1}.</span>${nl(q.question)}${renderFig(q.it.figure)}<div class="chs${forceOneCol ? ' one' : ''}">${q.choices.map((c, k) => `<div>${LET[k]}. ${nl(c)}</div>`).join('')}</div></div>`;
+        }).join('');
+        bodyHtml += `<div class="xpart-items${cols ? ' cols-2' : ''}">${itemsHtml}</div>`;
       } else if (p === 'tf') {
-        html += v.tf.map((q, i) => `<div class="xq"><span class="qn">${i + 1}.</span>${nl(q.statement)}</div>`).join('');
+        const itemsHtml = v.tf.map((q, i) => `<div class="xq"><span class="qn">${i + 1}.</span>${nl(q.statement)}${renderFig(q.it.figure)}</div>`).join('');
+        bodyHtml += `<div class="xpart-items${cols ? ' cols-2' : ''}">${itemsHtml}</div>`;
       } else if (p === 'match') {
         let n = 0;
-        html += v.match.map((g) => `<div class="xmatch"><div>${g.lefts.map((l) => `<div class="xq"><span class="qn">${++n}.</span>${nl(l.text)}</div>`).join('')}</div><div>${g.rights.map((r, k) => `<div class="xq opt">${LET[k]}. ${nl(r)}</div>`).join('')}</div></div>`).join('');
+        bodyHtml += v.match.map((g) => `<div class="xmatch"><div>${g.lefts.map((l) => `<div class="xq"><span class="qn">${++n}.</span>${nl(l.text)}${renderFig(l.it.figure)}</div>`).join('')}</div><div>${g.rights.map((r, k) => `<div class="xq opt">${LET[k]}. ${nl(r)}</div>`).join('')}</div></div>`).join('');
       } else {
-        html += v.written.map((q, i) => `<div class="xq"><span class="qn">${i + 1}.</span>${nl(q.it.question)}${Array.from({ length: q.it.lines || 5 }, () => '<div class="xline"></div>').join('')}</div>`).join('');
+        bodyHtml += v.written.map((q, i) => `<div class="xq"><span class="qn">${i + 1}.</span>${nl(q.it.question)}${renderFig(q.it.figure)}${Array.from({ length: q.it.lines || 5 }, () => '<div class="xline"></div>').join('')}</div>`).join('');
       }
     }
+    html += `<div class="xpaper-body">${bodyHtml}</div>`;
     return `<div class="xpaper${vi === st.ver ? '' : ' off'}" data-v="${vi}">${html}</div>`;
   }
 
@@ -399,6 +481,189 @@
     return `<div class="xpaper${vi === st.ver ? '' : ' off'}" data-v="${vi}">${html}</div>`;
   }
 
+  /* ------------------------- ข้อสอบออนไลน์ (Online Exam) ------------------------- */
+  async function publishOnlineExam() {
+    if (!st.doc) return;
+    syncMeta();
+    const pane = $('pane-online');
+    pane.innerHTML = `<div class="online-box"><p>กำลังสร้างและซิงค์ข้อสอบออนไลน์พร้อมรูปประกอบ…</p></div>`;
+    try {
+      const r = await api('api/online_exam.php', {
+        action: 'create',
+        id: st.onlineId || st.id || undefined,
+        sourceType: 'exam',
+        doc: st.doc,
+      });
+      st.onlineId = r.id;
+      st.onlineExam = r.exam;
+      drawOnlinePane();
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  function drawOnlinePane() {
+    const pane = $('pane-online');
+    if (!st.onlineExam) {
+      publishOnlineExam();
+      return;
+    }
+    const ex = st.onlineExam;
+    const fullUrl = `${location.origin}/online-exam.php?id=${encodeURIComponent(ex.id)}`;
+    const subs = Array.isArray(ex.submissions) ? ex.submissions : [];
+    const qs = Array.isArray(ex.questions) ? ex.questions : [];
+
+    const subsHtml = subs.length
+      ? `<table class="xatbl" style="margin-top:8px"><thead><tr><th>ลำดับ</th><th class="l">ชื่อ-นามสกุล</th><th>ชั้น</th><th>เลขที่</th><th>คะแนนที่ได้</th><th>คิดเป็น %</th><th>เวลาส่ง</th></tr></thead><tbody>${subs.map((s, idx) => `<tr><td>${idx + 1}</td><td class="l"><b>${esc(s.studentName)}</b></td><td>${esc(s.studentClass)}</td><td>${esc(s.studentNo || '-')}</td><td><b>${fmt(s.score)} / ${fmt(s.totalScore)}</b></td><td>${s.percent}%</td><td>${esc(fmtDate(s.submittedAt))}</td></tr>`).join('')}</tbody></table>`
+      : `<div style="color:var(--muted);padding:10px 0">ยังไม่มีนักเรียนส่งคำตอบ — ส่งลิงก์ด้านบนให้นักเรียน หรือทดลองทำข้อสอบด้านล่างได้เลย</div>`;
+
+    const previewItems = qs.map((q, idx) => {
+      const figHtml = renderFig(q.figure);
+      if (q.type === 'mc' || q.type === 'tf') {
+        return `<div class="oq-card" data-qid="${esc(q.id)}">
+          <div class="oq-q"><span class="oq-no">ข้อที่ ${idx + 1}</span> (${fmt(q.score)} คะแนน)${q.indicator ? ` <span class="chip">${esc(q.indicator)}</span>` : ''}<div style="margin-top:4px;font-weight:600">${nl(q.question)}</div></div>
+          ${figHtml}
+          <div class="oq-choices">${(q.choices || []).map((c, ci) => `<label class="oq-choice"><input type="radio" name="oq_${esc(q.id)}" value="${ci}"><span><b>${q.type === 'mc' ? LET[ci] + '.' : ''}</b> ${nl(c)}</span></label>`).join('')}</div>
+          <div class="oq-feedback hidden" id="fb_${esc(q.id)}"></div>
+        </div>`;
+      }
+      return `<div class="oq-card" data-qid="${esc(q.id)}">
+        <div class="oq-q"><span class="oq-no">ข้อที่ ${idx + 1}</span> (${fmt(q.score)} คะแนน)<div style="margin-top:4px;font-weight:600">${nl(q.question)}</div></div>
+        ${figHtml}
+        <input type="text" class="oq-input" name="oq_${esc(q.id)}" placeholder="พิมพ์คำตอบของคุณ…">
+        <div class="oq-feedback hidden" id="fb_${esc(q.id)}"></div>
+      </div>`;
+    }).join('');
+
+    pane.innerHTML = `
+      <div class="online-box">
+        <div class="online-header">
+          <div>
+            <h3 style="margin:0;color:#1e293b">🌐 ระบบข้อสอบออนไลน์พร้อมรูปประกอบ (Interactive Online Exam)</h3>
+            <p class="sub" style="margin:4px 0 0">แปลงจากชุดข้อสอบนี้โดยตรง แสดงโจทย์และรูปภาพ/แผนภาพ SVG เหมือนกระดาษข้อสอบทุกประการ พร้อมตรวจให้คะแนนทันที</p>
+          </div>
+          <div class="row">
+            <button type="button" class="ghost small" id="btnSyncOnline">↻ อัปเดตข้อสอบออนไลน์ตามที่แก้ล่าสุด</button>
+            <a class="btn-online-open" href="online-exam.php?id=${encodeURIComponent(ex.id)}" target="_blank">🚀 เปิดหน้าข้อสอบสำหรับนักเรียน</a>
+          </div>
+        </div>
+
+        <div class="online-share-bar">
+          <span style="font-weight:600;font-size:13px">🔗 ลิงก์ส่งให้นักเรียนทำข้อสอบ:</span>
+          <input type="text" id="onlineUrlInput" readonly value="${esc(fullUrl)}" style="flex:1;min-width:240px;background:#fff;padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px">
+          <button type="button" class="small" id="btnCopyOnlineUrl">📋 คัดลอกลิงก์</button>
+          <span id="copyOnlineMsg" style="font-size:12px;color:#15803d;font-weight:600"></span>
+        </div>
+
+        <div class="online-section">
+          <div class="row" style="justify-content:space-between">
+            <strong>📊 ผลคะแนนนักเรียนที่ส่งคำตอบแล้ว (${subs.length} คน)</strong>
+            <button type="button" class="ghost small" id="btnRefreshSubs">↻ รีเฟรชผลคะแนน</button>
+          </div>
+          <div id="onlineSubsWrap">${subsHtml}</div>
+        </div>
+
+        <div class="online-section">
+          <h3 style="margin:0 0 8px">📝 ทดลองทำข้อสอบออนไลน์ (มุมมองนักเรียน · ${qs.length} ข้อ · ${fmt(ex.totalScore)} คะแนน)</h3>
+          <div class="grid" style="margin-bottom:12px;background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
+            <label class="f">ชื่อ-นามสกุลผู้เข้าสอบ<input type="text" id="simStudentName" value="นักเรียนตัวอย่าง ทดลองสอบ" placeholder="ระบุชื่อ-นามสกุล"></label>
+            <label class="f">ชั้นเรียน<input type="text" id="simStudentClass" value="${esc(ex.grade || 'ม.4')}"></label>
+            <label class="f">เลขที่<input type="text" id="simStudentNo" value="1"></label>
+          </div>
+          <div id="onlineSimResult" class="hidden"></div>
+          <div id="onlinePreviewList">${previewItems}</div>
+          <div class="row" style="margin-top:14px;justify-content:center">
+            <button type="button" class="big" id="btnSubmitSimExam">✅ ส่งกระดาษคำตอบและตรวจคะแนนทันที</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    typeset(pane);
+
+    const copyBtn = $('btnCopyOnlineUrl');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => {
+        const inp = $('onlineUrlInput');
+        if (inp) {
+          inp.select();
+          if (navigator.clipboard) navigator.clipboard.writeText(inp.value).catch(() => {});
+          $('copyOnlineMsg').textContent = 'คัดลอกลิงก์เรียบร้อย!';
+          setTimeout(() => { if ($('copyOnlineMsg')) $('copyOnlineMsg').textContent = ''; }, 2500);
+        }
+      });
+    }
+
+    const syncBtn = $('btnSyncOnline');
+    if (syncBtn) syncBtn.addEventListener('click', publishOnlineExam);
+
+    const refreshBtn = $('btnRefreshSubs');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async () => {
+        try {
+          const r = await api('api/online_exam.php', { action: 'get', id: ex.id });
+          st.onlineExam = r.exam;
+          drawOnlinePane();
+        } catch (e) {
+          showError(e.message);
+        }
+      });
+    }
+
+    const submitBtn = $('btnSubmitSimExam');
+    if (submitBtn) {
+      submitBtn.addEventListener('click', async () => {
+        const answers = {};
+        qs.forEach((q) => {
+          if (q.type === 'mc' || q.type === 'tf') {
+            const checked = pane.querySelector(`input[name="oq_${q.id}"]:checked`);
+            if (checked) answers[q.id] = Number(checked.value);
+          } else {
+            const inp = pane.querySelector(`input[name="oq_${q.id}"]`);
+            if (inp) answers[q.id] = inp.value;
+          }
+        });
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'กำลังตรวจคำตอบ…';
+        try {
+          const res = await api('api/online_exam.php', {
+            action: 'submit',
+            id: ex.id,
+            studentName: $('simStudentName').value.trim() || 'นักเรียนตัวอย่าง',
+            studentClass: $('simStudentClass').value.trim(),
+            studentNo: $('simStudentNo').value.trim(),
+            answers,
+            durationSec: 120,
+          });
+          const sub = res.submission;
+          const resBanner = $('onlineSimResult');
+          resBanner.classList.remove('hidden');
+          resBanner.className = 'online-score-banner';
+          resBanner.innerHTML = `🎉 <b>ส่งคำตอบเรียบร้อย!</b> ผู้สอบ: ${esc(sub.studentName)} · ได้คะแนน <b>${fmt(sub.score)} / ${fmt(sub.totalScore)} คะแนน (${sub.percent}%)</b> · ตอบถูก ${sub.correctCount}/${sub.totalItems} ข้อ`;
+
+          (res.results || []).forEach((r) => {
+            const fb = document.getElementById(`fb_${r.id}`);
+            if (!fb) return;
+            fb.classList.remove('hidden');
+            fb.className = `oq-feedback ${r.isCorrect ? 'ok' : 'wrong'}`;
+            const corrLabel = typeof r.correctAnswer === 'number' ? LET[r.correctAnswer] : r.correctAnswer;
+            fb.innerHTML = `${r.isCorrect ? '✅ <b>ถูกต้อง!</b> (+' + fmt(r.score) + ' คะแนน)' : '❌ <b>ยังไม่ถูกต้อง</b> (คำตอบที่ถูกคือ ข้อ ' + esc(String(corrLabel)) + ')'}${r.explain ? `<div style="margin-top:3px;font-size:12px">${nl(r.explain)}</div>` : ''}`;
+          });
+
+          // Refresh submission table
+          const updated = await api('api/online_exam.php', { action: 'get', id: ex.id });
+          st.onlineExam = updated.exam;
+          resBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (err) {
+          showError(err.message);
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '✅ ส่งกระดาษคำตอบและตรวจคะแนนทันที';
+        }
+      });
+    }
+  }
+
   /* ----------------------------- แสดงผล ----------------------------- */
   function typeset(el) {
     if (typeof window.renderMathInElement !== 'function') return;
@@ -410,6 +675,7 @@
     if (!st.doc) return;
     if (t === 'analysis') renderAnalysis();
     else if (t === 'edit') renderEdit();
+    else if (t === 'online') publishOnlineExam();
     else {
       const f = t === 'paper' ? paperHtml : t === 'sheet' ? sheetHtml : keyHtml;
       const empty = PARTS.some((p) => st.doc.parts[p] && st.doc.parts[p].items.some((it) => it.source === 'none'));
@@ -440,13 +706,17 @@
     if (b) setTab(b.dataset.t);
   });
   $('btnPrint').addEventListener('click', () => window.print());
-  ['title', 'school', 'year', 'minutes', 'kind', 'term', 'versions'].forEach((k) => $(k).addEventListener('change', () => {
-    if (!st.doc) return;
-    syncMeta();
-    st.ver = Math.min(st.ver, versions() - 1);
-    renderVerBtns();
-    setTab(st.tab);
-  }));
+  ['title', 'school', 'year', 'minutes', 'kind', 'term', 'versions', 'paperCols'].forEach((k) => {
+    const el = $(k);
+    if (!el) return;
+    el.addEventListener('change', () => {
+      if (!st.doc) return;
+      syncMeta();
+      st.ver = Math.min(st.ver, versions() - 1);
+      renderVerBtns();
+      setTab(st.tab);
+    });
+  });
 
   function showResult(doc, stats, warnings) {
     st.doc = doc;
@@ -520,6 +790,7 @@
     d.versions = Number($('versions').value) || 1;
     d.kind = $('kind').value;
     d.term = $('term').value;
+    d.paperCols = $('paperCols') ? $('paperCols').value : '2';
   }
   $('btnSave').addEventListener('click', async () => {
     if (!st.doc) return;

@@ -72,6 +72,21 @@ $v = max(@filemtime(__DIR__ . '/assets/js/pages/exam.js') ?: 1, @filemtime(__DIR
       <label class="f" style="grid-column:span 3">ข้อเสนอแนะเพิ่มเติมถึง AI (ไม่บังคับ)<input type="text" id="hint" maxlength="300" placeholder="เช่น เน้นโจทย์สถานการณ์ในชีวิตประจำวัน"></label>
     </div>
     <label class="xchk" style="margin-top:10px"><input type="checkbox" id="useBank" checked> หยิบข้อจากคลังข้อสอบก่อน (ตรงชั้น วิชา ตัวชี้วัด และระดับ) แล้วให้ AI สร้างเฉพาะข้อที่ขาด</label>
+    <div class="grid" style="margin-top:10px">
+      <label class="f" style="grid-column:span 2">🖼️ รูปภาพและแผนภาพประกอบโจทย์
+        <select id="figMode">
+          <option value="smart" selected>มีรูปเฉพาะข้อที่จำเป็น (เหมือนข้อสอบจริง เช่น กราฟ แผนภาพเวนน์ เซลล์ สัญลักษณ์เคมี)</option>
+          <option value="all">มีรูปภาพ/แผนภาพประกอบทุกข้อ</option>
+          <option value="none">ไม่มีรูปภาพประกอบ</option>
+        </select>
+      </label>
+      <label class="f">📄 รูปแบบหน้ากระดาษข้อสอบ
+        <select id="paperCols">
+          <option value="2" selected>2 คอลัมน์ (แบบข้อสอบมาตรฐาน ม.ต้น/ม.ปลาย)</option>
+          <option value="1">1 คอลัมน์ (เรียงแถวเดียว)</option>
+        </select>
+      </label>
+    </div>
     <div id="planNote" class="xplan"></div>
     <div class="row" style="margin-top:12px"><button class="ghost" id="btnPlan">ดูตารางวิเคราะห์ / ข้อที่มีในคลัง</button><button id="btnGen">สร้างข้อสอบ</button><button type="button" class="ghost hidden" id="btnStop" title="หยุดการสร้างทันที">⏹ หยุด</button><span id="genNote" class="sub" style="margin:0"></span></div>
   </div>
@@ -85,6 +100,7 @@ $v = max(@filemtime(__DIR__ . '/assets/js/pages/exam.js') ?: 1, @filemtime(__DIR
           <button data-t="paper">ข้อสอบ</button>
           <button data-t="sheet">กระดาษคำตอบ</button>
           <button data-t="key">เฉลย</button>
+          <button data-t="online">🌐 ข้อสอบออนไลน์</button>
         </div>
         <span class="row"><button id="btnSave">บันทึก</button><button class="ghost" id="btnPrint">พิมพ์ / PDF แท็บนี้</button><span id="saveNote" class="sub" style="margin:0"></span></span>
       </div>
@@ -98,6 +114,7 @@ $v = max(@filemtime(__DIR__ . '/assets/js/pages/exam.js') ?: 1, @filemtime(__DIR
     <div class="tabpane" id="pane-paper"></div>
     <div class="tabpane" id="pane-sheet"></div>
     <div class="tabpane" id="pane-key"></div>
+    <div class="tabpane" id="pane-online"></div>
   </div>
 
   <div class="panel no-print"><strong>ข้อสอบที่บันทึกไว้</strong><div id="saved" style="margin-top:8px;font-size:14px">กำลังโหลด…</div></div>

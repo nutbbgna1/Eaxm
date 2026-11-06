@@ -125,8 +125,8 @@
   }
   function orToggle() {
     const on = $('textProvider').value === 'openrouter' || $('imageProvider').value === 'openrouter';
-    $('orBox').classList.toggle('hidden', !on);
-    if (on && !orState.loaded) orImport(false);
+    if ($('orBox')) $('orBox').classList.toggle('hidden', !on);
+    if (on && !orState.loaded && $('orImport')) orImport(false);
   }
 
   async function apiOnce(url, body, cancellable = false) {
@@ -1129,19 +1129,21 @@
 
   // ช่องโมเดล OpenRouter: จำค่าไว้ แสดงกล่องเมื่อเลือก OpenRouter
   for (const id of ['orText', 'orReview', 'orImage']) {
+    const el = $(id);
+    if (!el) continue;
     try {
       const saved = localStorage.getItem('ws_' + id);
-      if (saved && !$(id).value) $(id).value = saved;
+      if (saved && !el.value) el.value = saved;
     } catch {}
-    $(id).addEventListener('change', () => {
+    el.addEventListener('change', () => {
       try {
-        localStorage.setItem('ws_' + id, $(id).value.trim());
+        localStorage.setItem('ws_' + id, el.value.trim());
       } catch {}
       orCheckNote();
     });
   }
-  $('orImport').addEventListener('click', () => orImport(true));
-  $('orFree').addEventListener('change', orRender);
+  if ($('orImport')) $('orImport').addEventListener('click', () => orImport(true));
+  if ($('orFree')) $('orFree').addEventListener('change', orRender);
   $('textProvider').addEventListener('change', orToggle);
   $('imageProvider').addEventListener('change', orToggle);
   orToggle();
@@ -1251,6 +1253,62 @@
   $('appendBtn').addEventListener('click', () => runBatch(true));
   $('regenAllBtn').addEventListener('click', regenerateAll);
   $('copyBtn').addEventListener('click', saveCopy);
+  if ($('onlineWsBtn')) {
+    $('onlineWsBtn').addEventListener('click', async () => {
+      const doneSheets = state.sheets.filter((s) => s.status === 'done' && s.sheet);
+      if (!doneSheets.length) {
+        showError('กรุณาสร้างใบงานให้เสร็จอย่างน้อย 1 ใบก่อนแปลงเป็นข้อสอบออนไลน์');
+        return;
+      }
+      const btn = $('onlineWsBtn');
+      const box = $('onlineWsBox');
+      btn.disabled = true;
+      btn.textContent = 'กำลังแปลงเป็นข้อสอบออนไลน์…';
+      try {
+        const res = await apiOnce('api/online_exam.php', {
+          action: 'create',
+          sourceType: 'worksheet',
+          id: state.onlineExamId || undefined,
+          title: `แบบทดสอบออนไลน์: ${$('topic').value.trim() || state.baseTitle || 'ใบงาน'}`,
+          topic: $('topic').value.trim(),
+          subject: $('subject').value,
+          grade: $('grade').value,
+          school: $('hSchool').value.trim(),
+          minutes: Number($('hMinutes').value) || 30,
+          sheets: doneSheets,
+        });
+        state.onlineExamId = res.id;
+        const fullUrl = `${location.origin}/${res.url}`;
+        if (box) {
+          box.classList.remove('hidden');
+          box.innerHTML = `<div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <div><b>🌐 สร้างข้อสอบออนไลน์จากใบงานสำเร็จ!</b> (${res.exam.totalItems} ข้อ · มีรูปภาพประกอบเหมือนใบงาน)</div>
+            <div class="row" style="gap:6px">
+              <input type="text" readonly value="${esc(fullUrl)}" style="width:260px;padding:4px 8px;background:#fff;border:1px solid #93c5fd;border-radius:6px;font-size:12px" id="wsOnlineUrl">
+              <button type="button" class="ghost small" id="wsCopyOnlineBtn">📋 คัดลอกลิงก์</button>
+              <a href="${esc(res.url)}" target="_blank" style="background:#2563eb;color:#fff;text-decoration:none;padding:5px 12px;border-radius:8px;font-weight:700;font-size:13px">🚀 เปิดทำข้อสอบออนไลน์</a>
+            </div>
+          </div>`;
+          const cp = $('wsCopyOnlineBtn');
+          if (cp) {
+            cp.addEventListener('click', () => {
+              const inp = $('wsOnlineUrl');
+              if (inp) {
+                inp.select();
+                if (navigator.clipboard) navigator.clipboard.writeText(inp.value).catch(() => {});
+                cp.textContent = '✓ คัดลอกแล้ว';
+              }
+            });
+          }
+        }
+      } catch (e) {
+        showError(e.message || 'แปลงเป็นข้อสอบออนไลน์ไม่สำเร็จ');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🌐 แปลงเป็นข้อสอบออนไลน์';
+      }
+    });
+  }
   $('viewBoth').addEventListener('click', () => {
     state.view = 'both';
     fullRender();

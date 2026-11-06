@@ -213,6 +213,7 @@
     let inner = '';
     const ai = figPrompt(f, c.style, c.figureMode);
     if (ai) inner = c.img(ai, 'fig-img');
+    else if (f.kind === 'svg' && f.svg) inner = f.svg;
     else if (f.kind === 'graph') inner = graphSVG(f);
     else if (f.kind === 'diagram') inner = diagramSVG(f);
     else if (f.kind === 'table') inner = tableHTML(f.headers, f.rows);
@@ -623,6 +624,12 @@
     if (opts.style === 'formal') return formalSheetHTML(sheet, number, answers, imgHTML, opts);
     let body = '';
 
+    const itemMedia = (it, cls) => {
+      if (opts.figureMode === 'none') return '';
+      if (it && it.svgFigure) return `<div class="qi-svg" style="max-width:160px;margin-left:8px">${it.svgFigure}</div>`;
+      return imgHTML(it.imagePrompt, cls);
+    };
+
     if (sheet.type === 'fill_blank') {
       const bank = seeded(sheet.wordBank, sheet.topic + 'bank');
       body =
@@ -632,19 +639,19 @@
             const parts = String(it.text).split(/_{3,}/);
             return `<div class="q"><div class="n">${i + 1}.</div><div class="t">${esc(parts[0])}<span class="blank">${
               answers ? `<span class="ans">${esc(it.answer)}</span>` : ''
-            }</span>${esc(parts.slice(1).join(''))}</div>${imgHTML(it.imagePrompt, 'qi')}</div>`;
+            }</span>${esc(parts.slice(1).join(''))}</div>${itemMedia(it, 'qi')}</div>`;
           })
           .join('');
     } else if (sheet.type === 'multiple_choice') {
       body = sheet.items
         .map(
           (it, i) =>
-            `<div class="q"><div class="n">${i + 1}.</div><div class="t">${esc(it.question)}<div class="choices">${it.choices
+            `<div class="q"><div class="n">${i + 1}.</div><div class="t">${esc(it.question)}${it.svgFigure && opts.figureMode !== 'none' ? `<div style="margin:6px 0;text-align:center">${it.svgFigure}</div>` : ''}<div class="choices">${it.choices
               .map((c, j) => {
                 const right = answers && j === it.answerIndex;
                 return `<div${right ? ' class="ans"' : ''}>${LETTERS[j]}. ${esc(c)}${right ? ' ✓' : ''}</div>`;
               })
-              .join('')}</div></div>${imgHTML(it.imagePrompt, 'qi')}</div>`,
+              .join('')}</div></div>${!it.svgFigure ? imgHTML(it.imagePrompt, 'qi') : ''}</div>`,
         )
         .join('');
     } else if (sheet.type === 'matching') {
